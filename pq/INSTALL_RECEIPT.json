@@ -1,0 +1,78 @@
+{
+  "homebrew_version": "4.4.24-186-gc9a6bd6",
+  "used_options": [
+
+  ],
+  "unused_options": [
+
+  ],
+  "built_as_bottle": true,
+  "poured_from_bottle": true,
+  "loaded_from_api": true,
+  "installed_as_dependency": false,
+  "installed_on_request": true,
+  "changed_files": [
+    "include/pg_config.h",
+    "include/postgresql/server/pg_config.h",
+    "lib/pkgconfig/libecpg.pc",
+    "lib/pkgconfig/libecpg_compat.pc",
+    "lib/pkgconfig/libpgtypes.pc",
+    "lib/pkgconfig/libpq.pc"
+  ],
+  "time": 1742500822,
+  "source_modified_time": 1739826681,
+  "compiler": "clang",
+  "aliases": [
+
+  ],
+  "runtime_dependencies": [
+    {
+      "full_name": "icu4c@77",
+      "version": "77.1",
+      "revision": 0,
+      "pkg_version": "77.1",
+      "declared_directly": true
+    },
+    {
+      "full_name": "ca-certificates",
+      "version": "2025-02-25",
+      "revision": 0,
+      "pkg_version": "2025-02-25",
+      "declared_directly": false
+    },
+    {
+      "full_name": "openssl@3",
+      "version": "3.4.1",
+      "revision": 0,
+      "pkg_version": "3.4.1",
+      "declared_directly": true
+    },
+    {
+      "full_name": "krb5",
+      "version": "1.21.3",
+      "revision": 0,
+      "pkg_version": "1.21.3",
+      "declared_directly": true
+    }
+  ],
+  "source": {
+    "spec": "stable",
+    "versions": {
+      "stable": "17.4",
+      "head": null,
+      "version_scheme": 0
+    },
+    "path": "/Users/leonardocontrerasmartinez/Library/Caches/Homebrew/api/formula.jws.json",
+    "tap_git_head": null,
+    "tap": "homebrew/core"
+  },
+  "arch": "arm64",
+  "built_on": {
+    "os": "Macintosh",
+    "os_version": "macOS 15",
+    "cpu_family": "dunno",
+    "xcode": "16.2",
+    "clt": "16.2.0.0.1.1733547573",
+    "preferred_perl": "5.34"
+  }
+}
