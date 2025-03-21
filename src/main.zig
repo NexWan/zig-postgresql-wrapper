@@ -73,3 +73,23 @@ test "Try Query" {
     const query = "SELECT * FROM users";
     _ = try psql.execQuery(conn, query);
 }
+
+test "Try select" {
+    
+    const conn = try psql.init(connInfo);
+    const table = "users";
+    var result = try psql.select(conn, table);
+    std.debug.print("{any}\n", .{result});
+    defer result.deinit();
+    for (result.rows.items) |row| {
+        std.debug.print("{s}\n", .{row});
+    }
+    
+    for (result.columns.items) |column| {
+        std.debug.print("{s}\n", .{column});
+    }
+    
+    // Assuming I want to get the first row and the first column
+    std.debug.print("{s}\n", .{result.rows.items[0][0]});
+    psql.close(conn);
+}
