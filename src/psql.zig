@@ -7,6 +7,8 @@ const allocator = std.heap.page_allocator;
     const Errors = error{
         ConnectionFailed,
         QueryFailed,
+        InsertionFailed,
+        PrimaryKeyDuplicate
     };
     
     /// Struct that holds the result of a PostgreSQL query.
@@ -111,6 +113,27 @@ const allocator = std.heap.page_allocator;
         }
         psqlC.PQclear(result);
         return queryResult{.columns = columns, .rows = rows};
+    }
+    
+    /// Inserts a new row into the specified table.
+    /// The values should be formatted as the following: "\'{value}\'"
+    pub fn insert(self:psql, table:[] const u8, values: []const u8) !void {
+        const query = try std.fmt.allocPrint(allocator, "INSERT INTO {s} VALUES ({s})", .{table, values});
+        const result = psqlC.PQexec(self.connection, query.ptr);
+        allocator.free(query);
+        std.debug.print("{any}\n", .{psqlC.PQresultStatus(result)});
+        if(psqlC.PQresultStatus(result) != psqlC.PGRES_COMMAND_OK) {
+            const errorCode = try std.fmt.allocPrint(allocator, "{s}", .{psqlC.PQresultErrorField(result, psqlC.PG_DIAG_SQLSTATE)});
+            std.debug.print("Insertion failed: {s}\n", .{psqlC.PQerrorMessage(self.connection)});
+            if (std.mem.eql(u8, errorCode, "23505")) {
+                std.debug.print("Duplicate key error\n", .{});
+                return Errors.PrimaryKeyDuplicate;
+            }
+            psqlC.PQclear(result);
+            return Errors.InsertionFailed;
+        }
+        std.debug.print("Insertion executed successfully\n", .{});
+        psqlC.PQclear(result);
     }
 
     pub fn close(self:psql) void {

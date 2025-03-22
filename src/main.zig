@@ -5,7 +5,7 @@ const psql = @import("psql.zig");
 
 const connInfo = psql.connectionParams {
     .user = "user",
-    .password = "pwd",
+    .password = "password",
     .host = "localhost",
     .port = 5432,
     .database = "test",
@@ -42,18 +42,9 @@ pub fn exec(conn:  ?*c.PGconn, query: [*c]const u8) !void {
 }
 
 pub fn main() void {
-    const conninfo = "dbname=dbname user=user password=pwd host=localhost port=5432";
-    var conn = c.PQconnectdb(conninfo);
-    if (c.PQstatus(conn) != c.CONNECTION_OK) {
-        std.debug.print("Connection to database failed: {s}\n", .{c.PQerrorMessage(conn)});
-        c.PQfinish(conn);
-        return;
-    }
-    std.debug.print("Connected to database successfully.\n", .{});
-    const query = "SELECT * FROM users";
-    _ = try exec(conn,query);
-    c.PQfinish(conn);
-    conn = null;
+    const allocator = std.heap.page_allocator;
+    const env = std.process.getEnvMap(allocator);
+    std.debug.print("Environment Variables:\n {any}\n", .{env});
 }
 
 const std = @import("std");
@@ -91,5 +82,13 @@ test "Try select" {
     
     // Assuming I want to get the first row and the first column
     std.debug.print("{s}\n", .{result.rows.items[0][0]});
+    psql.close(conn);
+}
+
+test "Try insert" {
+    const conn = try psql.init(connInfo);
+    const table = "tests";
+    const values = "1, '4'";
+    _ = try psql.insert(conn, table, values);
     psql.close(conn);
 }
