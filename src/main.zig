@@ -4,8 +4,8 @@ const c = @cImport(@cInclude("libpq-fe.h"));
 const psql = @import("psql.zig");
 
 const connInfo = psql.connectionParams {
-    .user = "user",
-    .password = "password",
+    .user = "users",
+    .password = "pwd",
     .host = "localhost",
     .port = 5432,
     .database = "test",

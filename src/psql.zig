@@ -13,13 +13,25 @@ const allocator = std.heap.page_allocator;
     };
     
     /// Struct that holds the result of a PostgreSQL query.
+    /// It is pretty important to free the memory allocated once the queryResult is no longer needed.
     const queryResult = struct {
         rows: std.ArrayList([][]const u8),
         columns: std.ArrayList([]const u8),
         
+        /// Deinitializes the queryResult struct.
+        /// It is important to free the memory allocated for the columns and rows.
+        /// Otherwise, memory leaks may occur.
         pub fn deinit (self: *queryResult) void {
-            self.rows.deinit();
+            for(self.columns.items) |column| {
+                allocator.free(column);
+            }
             self.columns.deinit();
+            for(self.rows.items) |row| {
+                for(row) |cell| {
+                    allocator.free(cell);
+                }
+            }
+            self.rows.deinit();
         }
     };
 
@@ -63,6 +75,7 @@ const allocator = std.heap.page_allocator;
             return error.ConnectionFailed;
         }
         std.debug.print("Connection initialized successfully\n", .{});
+        allocator.free(connection);
         return psql{
             .connectionString = connectionString,
             .connection = conn,
@@ -123,6 +136,7 @@ const allocator = std.heap.page_allocator;
         allocator.free(query);
         if(psqlC.PQresultStatus(result) != psqlC.PGRES_COMMAND_OK) {
             const errorCode = try std.fmt.allocPrint(allocator, "{s}", .{psqlC.PQresultErrorField(result, psqlC.PG_DIAG_SQLSTATE)});
+            defer allocator.free(errorCode);
             std.debug.print("Insertion failed: {s}\n", .{psqlC.PQerrorMessage(self.connection)});
             if (std.mem.eql(u8, errorCode, "23505")) {
                 std.debug.print("Duplicate key error\n", .{});
@@ -171,6 +185,7 @@ const allocator = std.heap.page_allocator;
         }
     }
     
+    /// Close the connection to the PostgreSQL database.
     pub fn close(self: psql) void {
         psqlC.PQfinish(self.connection);
     }
