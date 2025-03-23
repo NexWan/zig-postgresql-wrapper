@@ -6,3 +6,10 @@ It utilizes the libpq library written in C. it provides a simple interface for i
 This project contains the whole PQlib so you can just clone the repo and build it, you don't need to install it separately.
 
 I haven't used it with docker yet, it works well with local installation of PostgreSQL.
+
+## Features (so far)
+- Connection management
+- Query execution
+- Result handling
+- Error handling
+- Insert, select and inner join queries
