@@ -88,7 +88,17 @@ test "Try select" {
 test "Try insert" {
     const conn = try psql.init(connInfo);
     const table = "tests";
-    const values = "1, '4'";
+    const values = "2, '4'";
     _ = try psql.insert(conn, table, values);
+    psql.close(conn);
+}
+
+test "Try inner join" {
+    const conn = try psql.init(connInfo);
+    const mainTable = "userstest";
+    const joinTable = "posts";
+    const joinValue = "id";
+    const columns = "userstest.id, userstest.name, posts.post";
+    try psql.selectJoin(conn, mainTable, joinTable, joinValue, columns);
     psql.close(conn);
 }

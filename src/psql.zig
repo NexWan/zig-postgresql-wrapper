@@ -8,7 +8,8 @@ const allocator = std.heap.page_allocator;
         ConnectionFailed,
         QueryFailed,
         InsertionFailed,
-        PrimaryKeyDuplicate
+        PrimaryKeyDuplicate, 
+        SelectJoinFailed
     };
     
     /// Struct that holds the result of a PostgreSQL query.
@@ -107,7 +108,6 @@ const allocator = std.heap.page_allocator;
                 const value = psqlC.PQgetvalue(result, @intCast(i), @intCast(j));
                 const valStr = try std.fmt.allocPrint(allocator, "{s}", .{value});
                 row.append(valStr) catch unreachable;
-                std.debug.print("Value: {s}\n", .{valStr});
             }
             rows.append(row.items) catch unreachable;
         }
@@ -121,7 +121,6 @@ const allocator = std.heap.page_allocator;
         const query = try std.fmt.allocPrint(allocator, "INSERT INTO {s} VALUES ({s})", .{table, values});
         const result = psqlC.PQexec(self.connection, query.ptr);
         allocator.free(query);
-        std.debug.print("{any}\n", .{psqlC.PQresultStatus(result)});
         if(psqlC.PQresultStatus(result) != psqlC.PGRES_COMMAND_OK) {
             const errorCode = try std.fmt.allocPrint(allocator, "{s}", .{psqlC.PQresultErrorField(result, psqlC.PG_DIAG_SQLSTATE)});
             std.debug.print("Insertion failed: {s}\n", .{psqlC.PQerrorMessage(self.connection)});
@@ -135,8 +134,43 @@ const allocator = std.heap.page_allocator;
         std.debug.print("Insertion executed successfully\n", .{});
         psqlC.PQclear(result);
     }
-
-    pub fn close(self:psql) void {
+    
+    /// Selects data from multiple tables using a INNER JOIN query.
+    /// Columns is an optional string of column names to select. If null, all columns are selected.
+    /// Columns format: "column1, column2, column3"
+    /// Join value is the value you want to use to join the tables. {example: mainTable.{joinValue} = joinTable.{joinValue}}
+    pub fn selectJoin(self: psql, mainTable:[]const u8, joinTable:[]const u8, joinValue:[]const u8, columns:?[]const u8) !void {
+        const query = try std.fmt.allocPrint(allocator, 
+            "SELECT {s} FROM {s} INNER JOIN {s} ON {s}.{s} = {s}.{s}", 
+            .{columns orelse "*", mainTable, joinTable, mainTable, joinValue, joinTable, joinValue}
+        );
+        const query_c = query.ptr;
+        const result = psqlC.PQexec(self.connection, query_c);
+        allocator.free(query);
+        if(psqlC.PQresultStatus(result) != psqlC.PGRES_TUPLES_OK) {
+            std.debug.print("SelectJoin failed: {s}\n", .{psqlC.PQerrorMessage(self.connection)});
+            psqlC.PQclear(result);
+            return Errors.SelectJoinFailed;
+        }
+        std.debug.print("SelectJoin executed successfully\n", .{});
+        printResult(result);
+        psqlC.PQclear(result);
+    }
+    
+    pub fn printResult(result: ?*psqlC.struct_pg_result) void {
+        const rows = psqlC.PQntuples(result);
+        const columns = psqlC.PQnfields(result);
+        
+        std.debug.print("Result set:\n", .{});
+        for (0..@intCast(rows)) |row| {
+            for (0..@intCast(columns)) |column| {
+                const value = psqlC.PQgetvalue(result, @intCast(row), @intCast(column));
+                std.debug.print("{s} ", .{value});
+            }
+            std.debug.print("\n", .{});
+        }
+    }
+    
+    pub fn close(self: psql) void {
         psqlC.PQfinish(self.connection);
-        std.debug.print("Connection closed successfully\n {any}", .{psqlC.PQstatus(self.connection)});
     }
