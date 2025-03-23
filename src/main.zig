@@ -55,6 +55,7 @@ const lib = @import("postgre_zig_lib");
 test "Try Connection" {
     std.debug.print("Try Connection\n", .{});
     const conn = try psql.init(connInfo);
+    try std.testing.expect(conn.connectionStatus == psql.connectionType.OK);
     psql.close(conn);
 }
 
@@ -70,7 +71,6 @@ test "Try select" {
     const conn = try psql.init(connInfo);
     const table = "users";
     var result = try psql.select(conn, table);
-    std.debug.print("{any}\n", .{result});
     defer result.deinit();
     for (result.rows.items) |row| {
         std.debug.print("{s}\n", .{row});
@@ -88,8 +88,9 @@ test "Try select" {
 test "Try insert" {
     const conn = try psql.init(connInfo);
     const table = "tests";
+    // This will return an error for duplicate key value
     const values = "2, '4'";
-    _ = try psql.insert(conn, table, values);
+    try std.testing.expectError(psql.Errors.PrimaryKeyDuplicate, psql.insert(conn, table, values));
     psql.close(conn);
 }
 

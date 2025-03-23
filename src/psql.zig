@@ -4,12 +4,24 @@ const std = @import("std");
 const psqlC = @cImport(@cInclude("libpq-fe.h"));
 const allocator = std.heap.page_allocator;
 
-    const Errors = error{
+    pub const Errors = error{
         ConnectionFailed,
         QueryFailed,
         InsertionFailed,
         PrimaryKeyDuplicate, 
         SelectJoinFailed
+    };
+    
+    pub const connectionType = enum {
+        OK,
+        ERROR,
+        DISCONNECTED,
+        CLOSED
+    };
+    
+    pub const queryStatus = enum {
+        OK,
+        FAILED
     };
     
     /// Struct that holds the result of a PostgreSQL query.
@@ -50,6 +62,7 @@ const allocator = std.heap.page_allocator;
         connectionString: connectionParams,
         /// Pointer to the PostgreSQL connection instance. You shall send this pointer to the PostgreSQL functions.
         connection: ?*psqlC.PGconn,
+        connectionStatus: connectionType,
     };
 
     /// Function that initializes and returns a new psql connection.
@@ -79,6 +92,7 @@ const allocator = std.heap.page_allocator;
         return psql{
             .connectionString = connectionString,
             .connection = conn,
+            .connectionStatus = connectionType.OK
         };
     }
 
