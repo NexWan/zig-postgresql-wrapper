@@ -9,7 +9,8 @@ const allocator = std.heap.page_allocator;
         QueryFailed,
         InsertionFailed,
         PrimaryKeyDuplicate, 
-        SelectJoinFailed
+        SelectJoinFailed, 
+        NotAStruct
     };
     
     pub const connectionType = enum {
@@ -99,7 +100,7 @@ const allocator = std.heap.page_allocator;
     /// Global function to execute any query on Postgres
     pub fn execQuery(self:psql, query:[*c]const u8) !void {
         const result = psqlC.PQexec(self.connection, query);
-        if (psqlC.PQresultStatus(result) != psqlC.PGRES_TUPLES_OK) {
+        if (psqlC.PQresultStatus(result) != psqlC.PGRES_TUPLES_OK and psqlC.PQresultStatus(result) != psqlC.PGRES_COMMAND_OK) {
             std.debug.print("Query execution failed: {s}\n", .{psqlC.PQerrorMessage(self.connection)});
             psqlC.PQclear(result);
             return Errors.QueryFailed;
@@ -120,26 +121,8 @@ const allocator = std.heap.page_allocator;
             return Errors.QueryFailed;
         }
         std.debug.print("Query executed successfully\n", .{});
-        const nFields = psqlC.PQnfields(result);
-        const nRows = psqlC.PQntuples(result);
-        var rows = std.ArrayList([][]const u8).init(allocator);
-        var columns = std.ArrayList([]const u8).init(allocator);
         
-        for (0..@intCast(nFields)) |i| {
-            const name = psqlC.PQfname(result, @intCast(i));
-            columns.append(try std.fmt.allocPrint(allocator, "{s}", .{name})) catch unreachable;
-        }
-        for (0..@intCast(nRows)) |i| {
-            var row = std.ArrayList([]const u8).init(allocator);
-            for (0..@intCast(nFields)) |j| {
-                const value = psqlC.PQgetvalue(result, @intCast(i), @intCast(j));
-                const valStr = try std.fmt.allocPrint(allocator, "{s}", .{value});
-                row.append(valStr) catch unreachable;
-            }
-            rows.append(row.items) catch unreachable;
-        }
-        psqlC.PQclear(result);
-        return queryResult{.columns = columns, .rows = rows};
+        return getResult(result);
     }
     
     /// Inserts a new row into the specified table.
@@ -167,7 +150,7 @@ const allocator = std.heap.page_allocator;
     /// Columns is an optional string of column names to select. If null, all columns are selected.
     /// Columns format: "column1, column2, column3"
     /// Join value is the value you want to use to join the tables. {example: mainTable.{joinValue} = joinTable.{joinValue}}
-    pub fn selectJoin(self: psql, mainTable:[]const u8, joinTable:[]const u8, joinValue:[]const u8, columns:?[]const u8) !void {
+    pub fn selectJoin(self: psql, mainTable:[]const u8, joinTable:[]const u8, joinValue:[]const u8, columns:?[]const u8) !queryResult {
         const query = try std.fmt.allocPrint(allocator, 
             "SELECT {s} FROM {s} INNER JOIN {s} ON {s}.{s} = {s}.{s}", 
             .{columns orelse "*", mainTable, joinTable, mainTable, joinValue, joinTable, joinValue}
@@ -181,10 +164,10 @@ const allocator = std.heap.page_allocator;
             return Errors.SelectJoinFailed;
         }
         std.debug.print("SelectJoin executed successfully\n", .{});
-        printResult(result);
-        psqlC.PQclear(result);
+        return getResult(result);
     }
     
+    /// Function to print the result of a query, this can be used for debugging purposes.
     pub fn printResult(result: ?*psqlC.struct_pg_result) void {
         const rows = psqlC.PQntuples(result);
         const columns = psqlC.PQnfields(result);
@@ -199,7 +182,105 @@ const allocator = std.heap.page_allocator;
         }
     }
     
+    /// function to print the result coming from a queryResult struct.
+    pub fn printQueryResult(result: queryResult) void {
+        for (result.rows.items) |row| {
+            std.debug.print("{s}\n", .{row});
+        }
+        
+        for (result.columns.items) |column| {
+            std.debug.print("{s}\n", .{column});
+        }
+    }
+    
+    /// Function to retrieve the result of a query as a queryResult struct.
+    /// This is a helper function that retrieves the result of a query as a queryResult struct.
+    pub fn getResult(result: ?*psqlC.PGresult) !queryResult {
+        const nFields = psqlC.PQnfields(result);
+        const nRows = psqlC.PQntuples(result);
+        var rows = std.ArrayList([][]const u8).init(allocator);
+        var columns = std.ArrayList([]const u8).init(allocator);
+        
+        for (0..@intCast(nFields)) |i| {
+            const name = psqlC.PQfname(result, @intCast(i));
+            columns.append(try std.fmt.allocPrint(allocator, "{s}", .{name})) catch unreachable;
+        }
+        for (0..@intCast(nRows)) |i| {
+            var row = std.ArrayList([]const u8).init(allocator);
+            for (0..@intCast(nFields)) |j| {
+                const value = psqlC.PQgetvalue(result, @intCast(i), @intCast(j));
+                const valStr = try std.fmt.allocPrint(allocator, "{s}", .{value});
+                row.append(valStr) catch unreachable;
+            }
+            rows.append(row.items) catch unreachable;
+        }
+        psqlC.PQclear(result);
+        
+        return queryResult{
+            .columns = columns,
+            .rows = rows,
+        };
+    }
+    
     /// Close the connection to the PostgreSQL database.
     pub fn close(self: psql) void {
         psqlC.PQfinish(self.connection);
+    }
+    
+    pub fn mapTypeToSQL(comptime T: type) []const u8 {
+        const ti = @typeInfo(T);
+        return switch(ti) {
+            .int => "INTEGER",
+            .float => "NUMERIC(255)",
+            else => "VARCHAR(255)",
+        };
+    }
+    
+    fn stripModuleName(typeName: []const u8) []const u8 {
+        var i: isize = @intCast(typeName.len-1);
+        while (i >= 0) {
+            if (typeName[@intCast(i)] == '.') {
+                return typeName[@intCast(i + 1)..];
+            }
+            i -= 1;
+        }
+        return typeName;
+    }
+    
+    /// Function to create tables based on a struct, by default the length of the properties is 255, I'm working on
+    /// adding more types and variable sizes 
+    pub fn createTableFor(comptime T: type, db: psql) !void {
+        // Ensure T is a struct.
+        const ti = @typeInfo(T);
+        switch (ti) {
+            .@"struct" => {},
+            else => return Errors.NotAStruct,
+        }
+        // Create a list of string parts.
+        var parts = std.ArrayList([]const u8).init(allocator);
+        defer parts.deinit();
+    
+        try parts.append("CREATE TABLE IF NOT EXISTS ");
+        try parts.append(stripModuleName(@typeName(T)));
+        try parts.append(" (");
+    
+        var first = true;
+        inline for (ti.@"struct".fields) |field| {
+            if (!first) {
+                try parts.append(", ");
+            } else {
+                first = false;
+            }
+            // Append field name and its corresponding SQL type.
+            try parts.append(field.name);
+            try parts.append(" ");
+            try parts.append(mapTypeToSQL(field.type));
+        }
+        try parts.append(");");
+    
+        // Join all parts into one query string.
+        const query = try std.mem.join(allocator, "", parts.items);
+        std.debug.print("Creating table with query: {s}\n", .{query});
+        try execQuery(db, query.ptr);
+        allocator.free(query);
     }

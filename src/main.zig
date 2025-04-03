@@ -4,11 +4,17 @@ const c = @cImport(@cInclude("libpq-fe.h"));
 const psql = @import("psql.zig");
 
 const connInfo = psql.connectionParams {
-    .user = "users",
-    .password = "pwd",
+    .user = "user",
+    .password = "pwd!",
     .host = "localhost",
     .port = 5432,
     .database = "test",
+};
+
+const UserTestAuto = struct {
+    id: i32,
+    name: []const u8,
+    age: i32,
 };
 
 pub fn exec(conn:  ?*c.PGconn, query: [*c]const u8) !void {
@@ -71,7 +77,6 @@ test "Try select" {
     const conn = try psql.init(connInfo);
     const table = "users";
     var result = try psql.select(conn, table);
-    defer result.deinit();
     for (result.rows.items) |row| {
         std.debug.print("{s}\n", .{row});
     }
@@ -79,6 +84,8 @@ test "Try select" {
     for (result.columns.items) |column| {
         std.debug.print("{s}\n", .{column});
     }
+    
+    defer result.deinit();
     
     // Assuming I want to get the first row and the first column
     std.debug.print("{s}\n", .{result.rows.items[0][0]});
@@ -100,6 +107,13 @@ test "Try inner join" {
     const joinTable = "posts";
     const joinValue = "id";
     const columns = "userstest.id, userstest.name, posts.post";
-    try psql.selectJoin(conn, mainTable, joinTable, joinValue, columns);
+    const res = try psql.selectJoin(conn, mainTable, joinTable, joinValue, columns);
+    psql.printQueryResult(res);
+    psql.close(conn);
+}
+
+test "Try creation of table" {
+    const conn = try psql.init(connInfo);
+    try psql.createTableFor(UserTestAuto, conn);
     psql.close(conn);
 }
