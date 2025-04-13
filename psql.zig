@@ -140,10 +140,8 @@ const allocator = std.heap.page_allocator;
     pub fn QParams(values: anytype) !QueryParams {
         var paramString = std.ArrayList([]const u8).init(allocator);
         defer paramString.deinit();
-        try paramString.append("(");
         var first = true;
         inline for (values) |value| {
-            std.debug.print("{any}\n", .{@TypeOf(value)});
             switch (@TypeOf(value)) {
                 i32 => {
                     if (!first) try paramString.append(", ");
@@ -166,7 +164,6 @@ const allocator = std.heap.page_allocator;
                 else => std.debug.print("Unsupported type: {}\n", .{@TypeOf(value)}),
             }
         }
-        try paramString.append(")");
         return QueryParams{.paramString = try std.mem.join(allocator, "", paramString.items)};
     }
     
