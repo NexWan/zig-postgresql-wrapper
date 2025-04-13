@@ -3,11 +3,11 @@ const psql = @import("psql.zig");
 const std = @import("std");
 
 const connInfo = psql.connectionParams {
-    .user = "",
-    .password = "",
-    .host = "",
-    .port = 0,
-    .database = "",
+    .user = "postgres",
+    .password = "***REMOVED***",
+    .host = "localhost",
+    .port = 5432,
+    .database = "test",
 };
 
 // Struct model to create the creation of a table based on this struct
@@ -65,8 +65,11 @@ test "Try insert" {
     const conn = try psql.init(connInfo);
     const table = "tests";
     // This will return an error for duplicate key value
-    const values = "2, '4'";
-    try std.testing.expectError(psql.Errors.PrimaryKeyDuplicate, psql.insert(conn, table, values));
+    const id:i32 = 2;
+    const name:[]const u8 = "John Doe";
+    var params = try psql.QParams(.{id,name});
+    defer params.deinit();
+    try std.testing.expectError(psql.Errors.PrimaryKeyDuplicate, psql.insert(conn, table, params.paramString));
     psql.close(conn);
 }
 
@@ -76,7 +79,7 @@ test "Try inner join" {
     const joinTable = "posts";
     const joinValue = "id";
     const columns = "userstest.id, userstest.name, posts.post";
-    const res = try psql.selectJoin(conn, mainTable, joinTable, joinValue, columns);
+    var res = try psql.selectJoin(conn, mainTable, joinTable, joinValue, columns);
     defer res.deinit();
     psql.printQueryResult(res);
     psql.close(conn);

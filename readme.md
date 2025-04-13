@@ -85,7 +85,7 @@ You can use the select inner join function in case you need to join two tables.
     const joinTable = "posts";
     const joinValue = "id";
     const columns = "userstest.id, userstest.name, posts.post";
-    const res = try psql.selectJoin(conn, mainTable, joinTable, joinValue, columns);
+    var res = try psql.selectJoin(conn, mainTable, joinTable, joinValue, columns);
     defer res.deinit();
     psql.printQueryResult(res);
     psql.close(conn);
