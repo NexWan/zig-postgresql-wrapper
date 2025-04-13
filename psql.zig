@@ -284,3 +284,4 @@ const allocator = std.heap.page_allocator;
         try execQuery(db, query.ptr);
         allocator.free(query);
     }
+    

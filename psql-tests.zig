@@ -1,62 +1,21 @@
-// Main file, used only for testing purposes
-
-const c = @cImport(@cInclude("libpq-fe.h"));
+/// Testing file
 const psql = @import("psql.zig");
+const std = @import("std");
 
 const connInfo = psql.connectionParams {
-    .user = "user",
-    .password = "pwd!",
-    .host = "localhost",
-    .port = 5432,
-    .database = "test",
+    .user = "",
+    .password = "",
+    .host = "",
+    .port = 0,
+    .database = "",
 };
 
+// Struct model to create the creation of a table based on this struct
 const UserTestAuto = struct {
     id: i32,
     name: []const u8,
     age: i32,
 };
-
-pub fn exec(conn:  ?*c.PGconn, query: [*c]const u8) !void {
-    const result = c.PQexec(conn, query);
-    if (c.PQresultStatus(result) != c.PGRES_TUPLES_OK) {
-        std.debug.print("Query failed: {s}\n", .{c.PQerrorMessage(conn)});
-        c.PQclear(result);
-        c.PQfinish(conn);
-        return;
-    }
-
-    const nfields = c.PQnfields(result);
-    const ntuples = c.PQntuples(result);
-
-    // Print column names
-    for (0..@intCast(nfields)) |i| {
-        std.debug.print("{s}\t", .{c.PQfname(result, @intCast(i))});
-    }
-    std.debug.print("\n", .{});
-
-    // Print rows
-    for (0..@intCast(ntuples)) |i| {
-        for (0..@intCast(nfields)) |j| {
-            std.debug.print("{s}\t", .{c.PQgetvalue(result, @intCast(i), @intCast(j))});
-        }
-        std.debug.print("\n", .{});
-    }
-
-    c.PQclear(result);
-
-}
-
-pub fn main() void {
-    const allocator = std.heap.page_allocator;
-    const env = std.process.getEnvMap(allocator);
-    std.debug.print("Environment Variables:\n {any}\n", .{env});
-}
-
-const std = @import("std");
-
-/// This imports the separate module containing `root.zig`. Take a look in `build.zig` for details.
-const lib = @import("postgre_zig_lib");
 
 test "Try Connection" {
     std.debug.print("Try Connection\n", .{});
