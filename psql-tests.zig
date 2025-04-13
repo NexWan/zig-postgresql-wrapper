@@ -77,6 +77,7 @@ test "Try inner join" {
     const joinValue = "id";
     const columns = "userstest.id, userstest.name, posts.post";
     const res = try psql.selectJoin(conn, mainTable, joinTable, joinValue, columns);
+    defer res.deinit();
     psql.printQueryResult(res);
     psql.close(conn);
 }
