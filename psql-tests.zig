@@ -66,7 +66,7 @@ test "Try insert" {
     const table = "tests";
     // This will return an error for duplicate key value
     const id:i32 = 2;
-    const name:[]const u8 = "John Doe";
+    const name = "John Doe";
     var params = try psql.QParams(.{id,name});
     defer params.deinit();
     try std.testing.expectError(psql.Errors.PrimaryKeyDuplicate, psql.insert(conn, table, params.paramString));

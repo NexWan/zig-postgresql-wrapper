@@ -161,7 +161,22 @@ const allocator = std.heap.page_allocator;
                     first = false;
                     continue;
                 },
-                else => std.debug.print("Unsupported type: {}\n", .{@TypeOf(value)}),
+                else => {
+                    const info = @typeInfo(@TypeOf(value));
+                    if (info == .pointer and @typeInfo(info.pointer.child) == .array){
+                        const array_info = @typeInfo(info.pointer.child).array;
+                        const maybe_sentinel = array_info.sentinel();
+                        std.debug.print("{any}", .{maybe_sentinel});
+                        if(array_info.child == u8 and maybe_sentinel != null){
+                            if (!first) try paramString.append(", ");
+                            try paramString.append(std.fmt.allocPrint(allocator, "\'{s}\'", .{value}) catch unreachable);
+                        }else{
+                            std.debug.print("Unsupported type: {s}\n", .{@typeName(@TypeOf(value))});
+                        }
+                    }else {
+                        std.debug.print("Unsupported type: {s}\n", .{@typeName(@TypeOf(value))});
+                    }
+                }
             }
         }
         return QueryParams{.paramString = try std.mem.join(allocator, "", paramString.items)};
