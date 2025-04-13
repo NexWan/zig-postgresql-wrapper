@@ -143,18 +143,21 @@ const allocator = std.heap.page_allocator;
         var first = true;
         inline for (values) |value| {
             switch (@TypeOf(value)) {
+                //Known time int
                 i32 => {
                     if (!first) try paramString.append(", ");
                     try paramString.append(std.fmt.allocPrint(allocator, "{d}", .{value}) catch unreachable);
                     first = false;
                     continue;
                 },
+                //Known time float
                 f32 => {
                     if (!first) try paramString.append(", ");
                     try paramString.append(std.fmt.allocPrint(allocator, "{d}", .{value}) catch unreachable);
                     first = false;
                     continue;
                 },
+                //Known time string
                 []const u8 => {
                     if (!first) try paramString.append(", ");
                     try paramString.append(std.fmt.allocPrint(allocator, "\'{s}\'", .{value}) catch unreachable);
@@ -162,6 +165,7 @@ const allocator = std.heap.page_allocator;
                     continue;
                 },
                 else => {
+                    // This will check for unknown comptime strings
                     const info = @typeInfo(@TypeOf(value));
                     if (info == .pointer and @typeInfo(info.pointer.child) == .array){
                         const array_info = @typeInfo(info.pointer.child).array;
