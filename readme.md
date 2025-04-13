@@ -57,17 +57,6 @@ You can use the `psql.select` function to select data from a table. It will retu
 ```zig
 const conn = try psql.init(connInfo);
 const table = "users";
-const columns = "id, name";
-const condition = "id = 1";
-_ = try psql.select(conn, table, columns, condition);
-```
-This function like the `psql.execQuery` will return whether the selection was successful or not.
-
-- Select:  
-You can use the `psql.select` function to select data from a table. It will return a list of rows and columns.
-```zig
-const conn = try psql.init(connInfo);
-const table = "users";
 var result = try psql.select(conn, table);
 ```
 To access the data, you can iterate over the result.
