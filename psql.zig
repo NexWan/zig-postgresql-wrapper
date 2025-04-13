@@ -125,6 +125,51 @@ const allocator = std.heap.page_allocator;
         return getResult(result);
     }
     
+    const QueryParams = struct {
+        paramString: []u8,
+        
+        pub fn deinit(self: *QueryParams) void {
+            allocator.free(self.paramString);
+        }
+    };
+    
+    /// Function to create a QueryParams object from a tuple of values
+    /// This function makes sure that the values are properly formatted and escaped for use in a PostgreSQL query.
+    /// Use this function when there is user input involved.
+    /// Make sure to deinitialize the QueryParams object after use.
+    pub fn QParams(values: anytype) !QueryParams {
+        var paramString = std.ArrayList([]const u8).init(allocator);
+        defer paramString.deinit();
+        try paramString.append("(");
+        var first = true;
+        inline for (values) |value| {
+            std.debug.print("{any}\n", .{@TypeOf(value)});
+            switch (@TypeOf(value)) {
+                i32 => {
+                    if (!first) try paramString.append(", ");
+                    try paramString.append(std.fmt.allocPrint(allocator, "{d}", .{value}) catch unreachable);
+                    first = false;
+                    continue;
+                },
+                f32 => {
+                    if (!first) try paramString.append(", ");
+                    try paramString.append(std.fmt.allocPrint(allocator, "{d}", .{value}) catch unreachable);
+                    first = false;
+                    continue;
+                },
+                []const u8 => {
+                    if (!first) try paramString.append(", ");
+                    try paramString.append(std.fmt.allocPrint(allocator, "\'{s}\'", .{value}) catch unreachable);
+                    first = false;
+                    continue;
+                },
+                else => std.debug.print("Unsupported type: {}\n", .{@TypeOf(value)}),
+            }
+        }
+        try paramString.append(")");
+        return QueryParams{.paramString = try std.mem.join(allocator, "", paramString.items)};
+    }
+    
     /// Inserts a new row into the specified table.
     /// The values should be formatted as the following: "\'{value}\'"
     pub fn insert(self:psql, table:[] const u8, values: []const u8) !void {

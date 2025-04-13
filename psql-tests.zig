@@ -17,6 +17,16 @@ const UserTestAuto = struct {
     age: i32,
 };
 
+test "Parameters" {
+    std.debug.print("Parameters\n", .{});
+    const id:i32 = 1;
+    const name:[]const u8 = "John";
+    const age:i32 = 30;
+    var params = try psql.QParams(.{id, name, age});
+    std.debug.print("{s}", .{params.paramString});
+    defer params.deinit();
+}
+
 test "Try Connection" {
     std.debug.print("Try Connection\n", .{});
     const conn = try psql.init(connInfo);
