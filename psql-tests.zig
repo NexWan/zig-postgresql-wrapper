@@ -36,6 +36,13 @@ test "Unknown type paramters" {
     defer params.deinit();
 }
 
+test "Sql Injection" {
+    const name = "'; DROP TABLE users; --";
+    var params = try psql.QParams(.{name});
+    std.debug.print("{s}\n", .{params.paramString});
+    defer params.deinit();
+}
+
 test "Try Connection" {
     std.debug.print("Try Connection\n", .{});
     const conn = try psql.init(connInfo);
