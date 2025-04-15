@@ -124,6 +124,17 @@ const allocator = std.heap.page_allocator;
 
         return getResult(result);
     }
+    
+    pub fn escapeString(str: []const u8) ![]u8 {
+        var escaped = std.ArrayList(u8).init(allocator);
+        defer escaped.deinit();
+        
+        for(str) |c| {
+            if (c == '\'') try escaped.appendSlice("''")
+            else try escaped.append(c);
+        }
+        return escaped.toOwnedSlice();
+    }
 
     const QueryParams = struct {
         paramString: []u8,
@@ -160,7 +171,8 @@ const allocator = std.heap.page_allocator;
                 //Known time string
                 []const u8 => {
                     if (!first) try paramString.append(", ");
-                    try paramString.append(std.fmt.allocPrint(allocator, "\'{s}\'", .{value}) catch unreachable);
+                    const safe_value = try escapeString(value);
+                    try paramString.append(std.fmt.allocPrint(allocator, "\'{s}\'", .{safe_value}) catch unreachable);
                     first = false;
                     continue;
                 },
@@ -174,7 +186,8 @@ const allocator = std.heap.page_allocator;
                         std.debug.print("{any}", .{maybe_sentinel});
                         if(array_info.child == u8 and maybe_sentinel != null){
                             if (!first) try paramString.append(", ");
-                            try paramString.append(std.fmt.allocPrint(allocator, "\'{s}\'", .{value}) catch unreachable);
+                            const safe_value = try escapeString(value);
+                            try paramString.append(std.fmt.allocPrint(allocator, "\'{s}\'", .{safe_value}) catch unreachable);
                         }
                     }else {
                         //Check for integer or float
