@@ -23,7 +23,16 @@ test "Parameters" {
     const name:[]const u8 = "John";
     const age:i32 = 30;
     var params = try psql.QParams(.{id, name, age});
-    std.debug.print("{s}", .{params.paramString});
+    std.debug.print("{s}\n", .{params.paramString});
+    defer params.deinit();
+}
+
+test "Unknown type paramters" {
+    const id = 1;
+    const name = "John";
+    const money = 100.2;
+    var params = try psql.QParams(.{id, name, money});
+    std.debug.print("{s}\n", .{params.paramString});
     defer params.deinit();
 }
 
