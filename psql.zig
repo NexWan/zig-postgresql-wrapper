@@ -8,29 +8,29 @@ const allocator = std.heap.page_allocator;
         ConnectionFailed,
         QueryFailed,
         InsertionFailed,
-        PrimaryKeyDuplicate, 
-        SelectJoinFailed, 
+        PrimaryKeyDuplicate,
+        SelectJoinFailed,
         NotAStruct
     };
-    
+
     pub const connectionType = enum {
         OK,
         ERROR,
         DISCONNECTED,
         CLOSED
     };
-    
+
     pub const queryStatus = enum {
         OK,
         FAILED
     };
-    
+
     /// Struct that holds the result of a PostgreSQL query.
     /// It is pretty important to free the memory allocated once the queryResult is no longer needed.
     const queryResult = struct {
         rows: std.ArrayList([][]const u8),
         columns: std.ArrayList([]const u8),
-        
+
         /// Deinitializes the queryResult struct.
         /// It is important to free the memory allocated for the columns and rows.
         /// Otherwise, memory leaks may occur.
@@ -121,18 +121,18 @@ const allocator = std.heap.page_allocator;
             return Errors.QueryFailed;
         }
         std.debug.print("Query executed successfully\n", .{});
-        
+
         return getResult(result);
     }
-    
+
     const QueryParams = struct {
         paramString: []u8,
-        
+
         pub fn deinit(self: *QueryParams) void {
             allocator.free(self.paramString);
         }
     };
-    
+
     /// Function to create a QueryParams object from a tuple of values
     /// This function makes sure that the values are properly formatted and escaped for use in a PostgreSQL query.
     /// Use this function when there is user input involved.
@@ -164,9 +164,10 @@ const allocator = std.heap.page_allocator;
                     first = false;
                     continue;
                 },
+                //If it's an unknown type, it will get checked for string, integer, or float
                 else => {
-                    // This will check for unknown comptime strings
                     const info = @typeInfo(@TypeOf(value));
+                    //Check for strings
                     if (info == .pointer and @typeInfo(info.pointer.child) == .array){
                         const array_info = @typeInfo(info.pointer.child).array;
                         const maybe_sentinel = array_info.sentinel();
@@ -174,18 +175,27 @@ const allocator = std.heap.page_allocator;
                         if(array_info.child == u8 and maybe_sentinel != null){
                             if (!first) try paramString.append(", ");
                             try paramString.append(std.fmt.allocPrint(allocator, "\'{s}\'", .{value}) catch unreachable);
-                        }else{
-                            std.debug.print("Unsupported type: {s}\n", .{@typeName(@TypeOf(value))});
                         }
                     }else {
-                        std.debug.print("Unsupported type: {s}\n", .{@typeName(@TypeOf(value))});
+                        //Check for integer or float
+                         switch(info){
+                            .comptime_int => {
+                                if (!first) try paramString.append(", ");
+                                try paramString.append(std.fmt.allocPrint(allocator, "{d}", .{value}) catch unreachable);
+                            },
+                            .comptime_float => {
+                                if (!first) try paramString.append(", ");
+                                try paramString.append(std.fmt.allocPrint(allocator, "{d}", .{value}) catch unreachable);
+                            },
+                            else => std.debug.print("Unsupported type: {any}\n", .{@typeName(@TypeOf(value))})
+                        }
                     }
                 }
             }
         }
         return QueryParams{.paramString = try std.mem.join(allocator, "", paramString.items)};
     }
-    
+
     /// Inserts a new row into the specified table.
     /// The values should be formatted as the following: "\'{value}\'"
     pub fn insert(self:psql, table:[] const u8, values: []const u8) !void {
@@ -206,14 +216,14 @@ const allocator = std.heap.page_allocator;
         std.debug.print("Insertion executed successfully\n", .{});
         psqlC.PQclear(result);
     }
-    
+
     /// Selects data from multiple tables using a INNER JOIN query.
     /// Columns is an optional string of column names to select. If null, all columns are selected.
     /// Columns format: "column1, column2, column3"
     /// Join value is the value you want to use to join the tables. {example: mainTable.{joinValue} = joinTable.{joinValue}}
     pub fn selectJoin(self: psql, mainTable:[]const u8, joinTable:[]const u8, joinValue:[]const u8, columns:?[]const u8) !queryResult {
-        const query = try std.fmt.allocPrint(allocator, 
-            "SELECT {s} FROM {s} INNER JOIN {s} ON {s}.{s} = {s}.{s}", 
+        const query = try std.fmt.allocPrint(allocator,
+            "SELECT {s} FROM {s} INNER JOIN {s} ON {s}.{s} = {s}.{s}",
             .{columns orelse "*", mainTable, joinTable, mainTable, joinValue, joinTable, joinValue}
         );
         const query_c = query.ptr;
@@ -227,12 +237,12 @@ const allocator = std.heap.page_allocator;
         std.debug.print("SelectJoin executed successfully\n", .{});
         return getResult(result);
     }
-    
+
     /// Function to print the result of a query, this can be used for debugging purposes.
     pub fn printResult(result: ?*psqlC.struct_pg_result) void {
         const rows = psqlC.PQntuples(result);
         const columns = psqlC.PQnfields(result);
-        
+
         std.debug.print("Result set:\n", .{});
         for (0..@intCast(rows)) |row| {
             for (0..@intCast(columns)) |column| {
@@ -242,18 +252,18 @@ const allocator = std.heap.page_allocator;
             std.debug.print("\n", .{});
         }
     }
-    
+
     /// function to print the result coming from a queryResult struct.
     pub fn printQueryResult(result: queryResult) void {
         for (result.rows.items) |row| {
             std.debug.print("{s}\n", .{row});
         }
-        
+
         for (result.columns.items) |column| {
             std.debug.print("{s}\n", .{column});
         }
     }
-    
+
     /// Function to retrieve the result of a query as a queryResult struct.
     /// This is a helper function that retrieves the result of a query as a queryResult struct.
     pub fn getResult(result: ?*psqlC.PGresult) !queryResult {
@@ -261,7 +271,7 @@ const allocator = std.heap.page_allocator;
         const nRows = psqlC.PQntuples(result);
         var rows = std.ArrayList([][]const u8).init(allocator);
         var columns = std.ArrayList([]const u8).init(allocator);
-        
+
         for (0..@intCast(nFields)) |i| {
             const name = psqlC.PQfname(result, @intCast(i));
             columns.append(try std.fmt.allocPrint(allocator, "{s}", .{name})) catch unreachable;
@@ -276,18 +286,18 @@ const allocator = std.heap.page_allocator;
             rows.append(row.items) catch unreachable;
         }
         psqlC.PQclear(result);
-        
+
         return queryResult{
             .columns = columns,
             .rows = rows,
         };
     }
-    
+
     /// Close the connection to the PostgreSQL database.
     pub fn close(self: psql) void {
         psqlC.PQfinish(self.connection);
     }
-    
+
     pub fn mapTypeToSQL(comptime T: type) []const u8 {
         const ti = @typeInfo(T);
         return switch(ti) {
@@ -296,7 +306,7 @@ const allocator = std.heap.page_allocator;
             else => "VARCHAR(255)",
         };
     }
-    
+
     fn stripModuleName(typeName: []const u8) []const u8 {
         var i: isize = @intCast(typeName.len-1);
         while (i >= 0) {
@@ -307,9 +317,9 @@ const allocator = std.heap.page_allocator;
         }
         return typeName;
     }
-    
+
     /// Function to create tables based on a struct, by default the length of the properties is 255, I'm working on
-    /// adding more types and variable sizes 
+    /// adding more types and variable sizes
     pub fn createTableFor(comptime T: type, db: psql) !void {
         // Ensure T is a struct.
         const ti = @typeInfo(T);
@@ -320,11 +330,11 @@ const allocator = std.heap.page_allocator;
         // Create a list of string parts.
         var parts = std.ArrayList([]const u8).init(allocator);
         defer parts.deinit();
-    
+
         try parts.append("CREATE TABLE IF NOT EXISTS ");
         try parts.append(stripModuleName(@typeName(T)));
         try parts.append(" (");
-    
+
         var first = true;
         inline for (ti.@"struct".fields) |field| {
             if (!first) {
@@ -338,11 +348,10 @@ const allocator = std.heap.page_allocator;
             try parts.append(mapTypeToSQL(field.type));
         }
         try parts.append(");");
-    
+
         // Join all parts into one query string.
         const query = try std.mem.join(allocator, "", parts.items);
         std.debug.print("Creating table with query: {s}\n", .{query});
         try execQuery(db, query.ptr);
         allocator.free(query);
     }
-    

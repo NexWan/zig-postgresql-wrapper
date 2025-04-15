@@ -118,7 +118,19 @@ If you have noticed, the insert query I used for this example is passed as a str
     std.debug.print("{s}", .{params.paramString});
     defer params.deinit();
 ```
-You will have to specify the data type for each parameter before passing it to the function, this is for helping the compiler to check the types and avoid errors.
+You can specify the data type for each parameter before passing it to the function, this is for helping the compiler to check the types and avoid errors.
 This will return a string representation of the parameters.
 The past code will return the following string:
-"(1,John,30)"
+`"1,John,30"`   
+Otherwise you can send in data types without specifying the data type, it will try to guess the type using Zig built in functions.
+```Zig
+    const id = 1;
+    const name = "John";
+    const money = 100.2;
+    var params = try psql.QParams(.{id, name, money});
+    std.debug.print("{s}\n", .{params.paramString});
+    defer params.deinit();
+```
+   
+This will return the following string:
+`"1,John,100.2"`   
