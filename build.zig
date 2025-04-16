@@ -26,7 +26,6 @@ pub fn build(b: *std.Build) !void {
     // Link the PostgreSQL library.
     lib.linkSystemLibrary("pq");
     b.installArtifact(lib);
-    b.addLibrary(lib);
     // Optionally add tests. Here we build and link a test executable.
     var main_test = b.addTest(. {
         .root_source_file = b.path("psql-tests.zig"),
