@@ -4,6 +4,10 @@ pub fn build(b: *std.Build) !void {
     // Define the common build options
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    
+    _ = b.addModule("psql", . {
+        .root_source_file = b.path("psql.zig"),
+    });
 
     // Create a static library target for the package.
     // This will compile your psql.zig into a static library.

@@ -4,9 +4,9 @@ const psql = @import("psql.zig").psql;
 const std = @import("std");
 
 const connInfo = psql.connectionParams {
-    .user = "postgres",
-    .password = "Olakase45",
-    .host = "localhost",
+    .user = "",
+    .password = "",
+    .host = "",
     .port = 5432,
     .database = "test",
 };
