@@ -146,3 +146,39 @@ defer params.deinit();
 
 This will return the following string:
 `'''; DROP TABLE users; --'`   
+
+
+# Installation   
+Right now this project only works on Mac OS (ARM Versions) since it uses the libpq interfaces compiled on mac.
+I'll be working on expanding the libs to support other platforms, but you can always clone the project and just 
+modify the "pq" library with your own platform. It should work just fine.
+
+```bash
+zig fetch --save https://github.com/NexWan/zig-postgresql-wrapper/archive/refs/tags/v0.0.1-alpha.3.tar.gz
+```
+
+This will add to an existing project's dependencies this library.
+You can verify this on your project's build.zig.zon file.   
+(Make sure to verify the tags to make sure you are using the latest version)
+
+```zig
+    .dependencies = .{
+        .psql = .{
+            .url = "https://github.com/NexWan/zig-postgresql-wrapper/archive/refs/tags/v0.0.1-alpha.3.tar.gz",
+            .hash = "psql-0.0.1-NdZkuuM16ADpA6fHiFfMwb6jFjd_lqKd9SM7aA3zLzg9",
+        },
+    },
+```    
+Now in your build.zig just add the following code: (Before b.installArtifact(exe))
+```zig
+const psql = b.dependency("psql", .{
+    .target = target,
+    .optimize = optimize,
+    
+});
+
+exe.root_module.addImport("psql", psql.module("psql"));
+exe.addIncludePath(psql.path("pq/include"));
+exe.addLibraryPath(psql.path("pq/lib"));
+exe.linkLibrary(psql.artifact("psql"));
+```
