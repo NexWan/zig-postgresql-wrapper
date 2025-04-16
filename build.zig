@@ -5,9 +5,15 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     
-    _ = b.addModule("psql", .{
+    const psql_dep = b.addModule("psql", .{
         .root_source_file = b.path("psql.zig"),
     });
+    
+    psql_dep.addIncludePath(b.path("pq/include/"));
+    // Add the directory for the library files.
+    psql_dep.addLibraryPath(b.path("pq/lib/"));
+    // Link the PostgreSQL library.
+    psql_dep.linkSystemLibrary("pq");
 
     // Create a static library target for the package.
     // This will compile your psql.zig into a static library.
