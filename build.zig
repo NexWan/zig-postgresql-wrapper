@@ -12,8 +12,6 @@ pub fn build(b: *std.Build) !void {
     psql_dep.addIncludePath(b.path("pq/include/"));
     // Add the directory for the library files.
     psql_dep.addLibraryPath(b.path("pq/lib/"));
-    // Link the PostgreSQL library.
-    psql_dep.linkSystemLibrary("pq");
 
     // Create a static library target for the package.
     // This will compile your psql.zig into a static library.
